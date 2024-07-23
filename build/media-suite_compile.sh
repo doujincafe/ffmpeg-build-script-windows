@@ -596,7 +596,7 @@ if [[ $ffmpeg != no || $standalone = y ]] && enabled libtesseract; then
     do_pacman_install libarchive pango asciidoc
     _check=(libtesseract.{,l}a tesseract.pc)
     if do_vcs "$SOURCE_REPO_TESSERACT"; then
-        do_pacman_install docbook-xsl
+        do_pacman_install docbook-xsl omp
         do_autogen
         _check+=(bin-global/tesseract.exe)
         do_uninstall include/tesseract "${_check[@]}"
@@ -719,6 +719,7 @@ elif [[ $sox = y ]] || { [[ $standalone = y ]] && enabled_any libvorbis libopus;
 fi
 grep_and_sed dllimport "$LOCALDESTDIR"/include/FLAC++/export.h \
         's|__declspec\(dllimport\)||g' "$LOCALDESTDIR"/include/FLAC{,++}/export.h
+grep_or_sed pthread "$LOCALDESTDIR/lib/pkgconfig/flac.pc" 's/Libs.private: /&-pthread /;s/Cflags: .*/& -pthread/'
 
 _check=(libvo-amrwbenc.{l,}a vo-amrwbenc.pc)
 if [[ $ffmpeg != no ]] && enabled libvo-amrwbenc &&
@@ -1185,6 +1186,17 @@ fi
 # add allow-multiple-definition to the .pc file to fix linking with other rust libraries
 sed -i 's/Libs.private:.*/& -Wl,--allow-multiple-definition/' "$LOCALDESTDIR/lib/pkgconfig/rav1e.pc" >/dev/null 2>&1
 
+_check=(bin-video/SvtAv1EncApp.exe
+    libSvtAv1Enc.a SvtAv1Enc.pc)
+if [[ $bits = 32bit ]]; then
+    do_removeOption --enable-libsvtav1
+elif { [[ $svtav1 = y ]] || enabled libsvtav1; } &&
+    do_vcs "$SOURCE_REPO_SVTAV1"; then
+    do_uninstall include/svt-av1 "${_check[@]}" include/svt-av1
+    do_cmakeinstall video -DUNIX=OFF -DENABLE_AVX512=ON
+    do_checkIfExist
+fi
+
 if [[ $libavif = y ]]; then
     do_pacman_install libjpeg-turbo libyuv
     _check=(libavif.{a,pc} avif/avif.h)
@@ -1447,7 +1459,6 @@ fi
 
 if [[ $ffmpeg != no ]] && enabled libvidstab; then
     do_pacman_install omp
-    do_pacman_remove openmp
     _check=(libvidstab.a vidstab.pc)
     if do_vcs "$SOURCE_REPO_VIDSTAB" vidstab; then
         do_uninstall include/vid.stab "${_check[@]}"
@@ -1517,7 +1528,6 @@ fi
 
 _check=(libgpac_static.a bin-video/{MP4Box,gpac}.exe)
 if [[ $mp4box = y ]] && do_vcs "$SOURCE_REPO_GPAC"; then
-    do_patch "https://github.com/gpac/gpac/pull/2836.patch" am
     do_uninstall include/gpac "${_check[@]}"
     git grep -PIl "\xC2\xA0" | xargs -r sed -i 's/\xC2\xA0/ /g'
     # Disable passing rpath to the linker, as it's a no-op with ld, but an error with lld
@@ -1538,17 +1548,6 @@ elif { [[ $svthevc = y ]] || enabled libsvthevc; } &&
     do_vcs "$SOURCE_REPO_SVTHEVC"; then
     do_uninstall "${_check[@]}" include/svt-hevc
     do_cmakeinstall video -DUNIX=OFF
-    do_checkIfExist
-fi
-
-_check=(bin-video/SvtAv1EncApp.exe
-    libSvtAv1Enc.a SvtAv1Enc.pc)
-if [[ $bits = 32bit ]]; then
-    do_removeOption --enable-libsvtav1
-elif { [[ $svtav1 = y ]] || enabled libsvtav1; } &&
-    do_vcs "$SOURCE_REPO_SVTAV1"; then
-    do_uninstall include/svt-av1 "${_check[@]}" include/svt-av1
-    do_cmakeinstall video -DUNIX=OFF -DENABLE_AVX512=ON
     do_checkIfExist
 fi
 
@@ -2488,6 +2487,7 @@ if [[ $mpv != n ]] && pc_exists libavcodec libavformat libswscale libavfilter; t
     mpv_enabled libmpv-static && _check+=(libmpv.a)
     _deps=(lib{ass,avcodec,vapoursynth,shaderc_combined,spirv-cross,placebo}.a "$MINGW_PREFIX"/lib/libuchardet.a)
     if do_vcs "$SOURCE_REPO_MPV"; then
+        do_pacman_install -m python-setuptools
         do_patch "https://github.com/mpv-player/mpv/commit/78447c4b91634aa91dcace1cc6a9805fb93b9252.patch" am
         do_patch "https://github.com/mpv-player/mpv/commit/414ddbd628724df3afc1e15f5e415dbb2c76a0b5.patch" am
         do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/mpv/0001-ao_wasapi_utils-include-mmreg.h-for-WAVE_FORMAT.patch" am
