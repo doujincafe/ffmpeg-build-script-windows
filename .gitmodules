@@ -1,6 +1,0 @@
-[submodule "build/xeve-git"]
-	path = build/xeve-git
-	url = https://github.com/mpeg5/xeve
-[submodule "build/xevd-git"]
-	path = build/xevd-git
-	url = https://github.com/mpeg5/xevd
