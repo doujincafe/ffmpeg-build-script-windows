@@ -128,7 +128,7 @@ set ffmpeg_options_full=chromaprint decklink frei0r libaribb24 libbs2b libcaca ^
 libcdio libflite libfribidi libgme libilbc libsvthevc ^
 libsvtvp9 libkvazaar libmodplug librist librtmp librubberband #libssh ^
 libtesseract libxavs libzmq libzvbi openal libcodec2 ladspa #vapoursynth #liblensfun ^
-libglslang vulkan libdavs2 libxavs2 libuavs3d libplacebo libjxl
+libglslang vulkan libdavs2 libxavs2 libuavs3d libplacebo libjxl libvvenc
 
 :: options also available with the suite that add shared dependencies
 set ffmpeg_options_full_shared=opencl opengl cuda-nvcc libnpp libopenh264
@@ -1805,7 +1805,15 @@ if %build32%==yes call :writeProfile 32
 if %build64%==yes call :writeProfile 64
 
 rem update
-call :runBash update.log /build/media-suite_update.sh --build32=%build32% --build64=%build64% --CC="%CC%"
+if exist "%instdir%\build\updated.log" (
+    powershell -noprofile -command "exit ([datetimeoffset]::now.tounixtimeseconds() - (get-content %instdir%\build\updated.log) -gt 86400)" || set needsupdate=yes
+) else (
+    set needsupdate=yes
+)
+if defined needsupdate (
+    call :runBash update.log /build/media-suite_update.sh --build32=%build32% --build64=%build64% --CC="%CC%"
+    powershell -noprofile -command "[datetimeoffset]::now.tounixtimeseconds()" > %instdir%\build\updated.log
+)
 
 if exist "%build%\update_core" (
     echo.-------------------------------------------------------------------------------

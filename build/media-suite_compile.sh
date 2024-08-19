@@ -1131,7 +1131,7 @@ if { [[ $dav1d = y ]] || [[ $libavif = y ]] || { [[ $ffmpeg != no ]] && enabled 
     do_checkIfExist
 fi
 
-{ enabled librav1e || [[ $libavif = y ]]; } && do_pacman_install cargo-c
+{ enabled librav1e || [[ $libavif = y ]] || [[ $dovitool = y ]]; } && do_pacman_install cargo-c
 
 _check=()
 { [[ $rav1e = y ]] ||
@@ -1834,7 +1834,7 @@ _vapoursynth_install() {
     fi
     _python_ver=3.12.3
     _python_lib=python312
-    _vsver=68
+    _vsver=69
     _check=("lib$_python_lib.a")
     if files_exist "${_check[@]}"; then
         do_print_status "python $_python_ver" "$green" "Up-to-date"
@@ -1904,7 +1904,6 @@ if [[ $ffmpeg != no ]] && enabled liblensfun; then
     if do_vcs "$SOURCE_REPO_LENSFUN"; then
         do_patch "https://github.com/m-ab-s/mabs-patches/raw/master/lensfun/0001-CMake-exclude-mingw-w64-from-some-msvc-exclusive-thi.patch" am
         do_patch "https://github.com/m-ab-s/mabs-patches/raw/master/lensfun/0002-CMake-don-t-add-glib2-s-includes-as-SYSTEM-dirs.patch" am
-        do_patch "https://github.com/lensfun/lensfun/pull/1999.patch" am
         do_uninstall "bin-video/lensfun" "${_check[@]}"
         CFLAGS+=" -DGLIB_STATIC_COMPILATION" CXXFLAGS+=" -DGLIB_STATIC_COMPILATION" \
             do_cmakeinstall -DBUILD_STATIC=on -DBUILD_{TESTS,LENSTOOL,DOC}=off \
@@ -1950,6 +1949,8 @@ if [[ $bits = 64bit && $vvenc = y ]] ||
     do_uninstall include/vvenc lib/cmake/vvenc "${_check[@]}"
     do_cmakeinstall video -DVVENC_ENABLE_LINK_TIME_OPT=OFF -DVVENC_INSTALL_FULLFEATURE_APP=ON
     do_checkIfExist
+else
+    pc_exists libvvenc || do_removeOption "--enable-libvvenc"
 fi
 
 _check=(bin-video/vvdecapp.exe
@@ -1960,6 +1961,30 @@ if [[ $bits = 64bit && $vvdec = y ]] &&
     do_vcs "$SOURCE_REPO_LIBVVDEC"; then
     do_uninstall include/vvdec lib/cmake/vvdec "${_check[@]}"
     do_cmakeinstall video -DVVDEC_ENABLE_LINK_TIME_OPT=OFF -DVVDEC_INSTALL_VVDECAPP=ON
+    do_checkIfExist
+fi
+
+_check=(bin-video/xeve_app.exe xeve/xeve{,_exports}.h libxeve.a xeve.pc)
+if [[ $ffmpeg != no ]] && enabled libxeve &&
+    do_vcs "$SOURCE_REPO_XEVE"; then
+    do_uninstall bin-video/libxeve.dll lib/libxeve.dll.a.dyn "${_check[@]}"
+    sed -i 's/-Werror //' CMakeLists.txt
+    do_cmakeinstall video
+    # no way to disable shared lib building in cmake
+    mv -f "$LOCALDESTDIR"/lib/xeve/libxeve.a "$LOCALDESTDIR"/lib/libxeve.a
+    mv -f "$LOCALDESTDIR"/lib/libxeve.dll.a "$LOCALDESTDIR"/lib/libxeve.dll.a.dyn
+    do_checkIfExist
+fi
+
+_check=(bin-video/xevd_app.exe xevd/xevd{,_exports}.h libxevd.a xevd.pc)
+if [[ $ffmpeg != no ]] && enabled libxevd &&
+    do_vcs "$SOURCE_REPO_XEVD"; then
+    do_uninstall bin-video/libxevd.dll lib/libxevd.dll.a.dyn "${_check[@]}"
+    sed -i 's/-Werror //' CMakeLists.txt
+    do_cmakeinstall video
+    # no way to disable shared lib building in cmake
+    mv -f "$LOCALDESTDIR"/lib/xevd/libxevd.a "$LOCALDESTDIR"/lib/libxevd.a
+    mv -f "$LOCALDESTDIR"/lib/libxevd.dll.a "$LOCALDESTDIR"/lib/libxevd.dll.a.dyn
     do_checkIfExist
 fi
 
