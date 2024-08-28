@@ -106,6 +106,7 @@
 --enable-libplacebo
 --enable-libjxl
 --enable-libvvenc
+--enable-libvvdec
 --enable-libxeve
 --enable-libxevd
 
