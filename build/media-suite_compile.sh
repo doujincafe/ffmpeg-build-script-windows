@@ -1021,6 +1021,19 @@ if { { [[ $ffmpeg != no ]] &&
     unset _mingw_patches
 fi
 
+_check=(liblc3.a lc3.pc)
+if [[ $ffmpeg != no ]] && enabled liblc3 &&
+    do_vcs "$SOURCE_REPO_LIBLC3"; then
+    do_uninstall "${_check[@]}"
+    if [[ $standalone = y ]]; then
+        _check+=(bin-audio/{d,e}lc3.exe)
+        LDFLAGS+=" -lpthread" do_mesoninstall audio -Dtools=true
+    else
+        do_mesoninstall audio
+    fi
+    do_checkIfExist
+fi
+
 if [[ $exitearly = EE4 ]]; then
     do_simple_print -p '\n\t'"${orange}Exit due to env var MABS_EXIT_EARLY set to EE4"
     return
@@ -1505,6 +1518,21 @@ if [[ $ffmpeg != no ]] && enabled decklink &&
     do_vcs "$SOURCE_REPO_DECKLINK"; then
     do_makeinstall PREFIX="$LOCALDESTDIR"
     do_checkIfExist
+fi
+
+_check=(libvpl.a vpl.pc)
+if [[ $ffmpeg != no ]] && enabled libvpl; then
+    if enabled libmfx; then
+        do_removeOption --enable-libmfx
+    fi
+    if do_vcs "$SOURCE_REPO_LIBVPL" libvpl; then
+    if [[ $bits = 32bit ]]; then
+        do_patch https://raw.githubusercontent.com/msys2/MINGW-packages/master/mingw-w64-libvpl/0003-cmake-fix-32bit-install.patch
+    fi
+    do_uninstall include/vpl "${_check[@]}"
+    do_cmakeinstall -DUNIX=OFF
+    do_checkIfExist
+    fi
 fi
 
 _check=(libmfx.{{l,}a,pc})
