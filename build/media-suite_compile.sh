@@ -171,12 +171,12 @@ do_simple_print -p '\n\t'"${orange}Starting $bits compilation of global tools${r
 
 if [[ $bits = 32bit && $av1an != n ]]; then
     do_simple_print "${orange}Av1an cannot be compiled due to Vapoursynth being broken on 32-bit and will be disabled"'!'"${reset}"
+    _reenable_av1an=$av1an # so that av1an can be built if both 32 bit and 64 bit targets are enabled
     av1an=n
-    _reenable_av1an=y # so that av1an can be built if both 32 bit and 64 bit targets are enabled
 fi
 
-if [[ $bits = 64bit && $_reenable_av1an = y ]]; then
-    av1an=y
+if [[ ! -z $_reenable_av1an ]] && [[ $bits = 64bit ]]; then
+    av1an=$_reenable_av1an
     unset _reenable_av1an
 fi
 
@@ -187,8 +187,10 @@ if [[ $packing = y &&
     do_install upx.exe /opt/bin/upx.exe
 fi
 
-if [[ "$ripgrep|$rav1e|$dssim|$libavif|$dovitool|$hdr10plustool" = *y* ]] || enabled librav1e; then
+if [[ "$ripgrep|$rav1e|$dssim|$libavif|$dovitool|$hdr10plustool" = *y* ]] ||
+    [[ $av1an != n ]] || enabled librav1e; then
     do_pacman_install rust
+    [[ $CC =~ clang ]] && rust_target_suffix="llvm"
 fi
 
 _check=(bin-global/rg.exe)
@@ -196,7 +198,7 @@ if [[ $ripgrep = y ]] &&
     do_vcs "https://github.com/BurntSushi/ripgrep.git"; then
     do_uninstall "${_check[@]}"
     do_rust
-    do_install "target/$CARCH-pc-windows-gnu/release/rg.exe" bin-global/
+    do_install "target/$CARCH-pc-windows-gnu$rust_target_suffix/release/rg.exe" bin-global/
     do_checkIfExist
 fi
 
@@ -225,7 +227,7 @@ if [[ $dssim = y ]] &&
     do_vcs "https://github.com/kornelski/dssim.git"; then
     do_uninstall "${_check[@]}"
     CFLAGS+=" -fno-PIC" do_rust
-    do_install "target/$CARCH-pc-windows-gnu/release/dssim.exe" bin-global/
+    do_install "target/$CARCH-pc-windows-gnu$rust_target_suffix/release/dssim.exe" bin-global/
     do_checkIfExist
 fi
 
@@ -548,7 +550,7 @@ if [[ $jpegxl = y ]] || { [[ $ffmpeg != no ]] && enabled libjxl; }; then
     _check=(libjxl{{,_threads}.a,.pc} jxl/decode.h)
     [[ $jpegxl = y ]] && _check+=(bin-global/{{c,d}jxl,cjpegli,jxlinfo}.exe)
     if do_vcs "$SOURCE_REPO_LIBJXL"; then
-        do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/libjxl/0001-brotli-add-ldflags.patch" am
+        do_patch "https://raw.githubusercontent.com/m-ab-s/mabs-patches/master/libjxl/0001-brotli-link-enc-before-common.patch" am
         do_uninstall "${_check[@]}" include/jxl
         do_pacman_install asciidoc
         extracommands=()
@@ -609,6 +611,10 @@ if [[ $ffmpeg != no || $standalone = y ]] && enabled libtesseract; then
     _check=(libtesseract.{,l}a tesseract.pc)
     if do_vcs "$SOURCE_REPO_TESSERACT"; then
         do_pacman_install docbook-xsl omp
+        # Reverts a commit that breaks the pkgconfig file
+        {
+            git revert --no-edit b4a4f5c || git revert --abort
+        } > /dev/null 2>&1
         do_autogen
         _check+=(bin-global/tesseract.exe)
         do_uninstall include/tesseract "${_check[@]}"
@@ -1183,7 +1189,7 @@ if { [[ $rav1e = y ]] || [[ $libavif = y ]] || enabled librav1e; } &&
     # standalone binary
     if [[ $rav1e = y || $standalone = y || $av1an != n ]]; then
         do_rust --profile release-no-lto
-        find "target/$CARCH-pc-windows-gnu" -name "rav1e.exe" | while read -r f; do
+        find "target/$CARCH-pc-windows-gnu$rust_target_suffix" -name "rav1e.exe" | while read -r f; do
             do_install "$f" bin-video/
         done
     fi
@@ -1426,7 +1432,7 @@ if [[ $dovitool = y ]] &&
     do_vcs "$SOURCE_REPO_DOVI_TOOL"; then
     do_uninstall "${_check[@]}" include/libdovi bin-video/dovi.dll dovi.def dovi.dll.a
     do_rust
-    do_install "target/$CARCH-pc-windows-gnu/release/dovi_tool.exe" bin-video/
+    do_install "target/$CARCH-pc-windows-gnu$rust_target_suffix/release/dovi_tool.exe" bin-video/
     cd dolby_vision
     do_rustcinstall --bindir="$LOCALDESTDIR"/bin-video/ --library-type=staticlib
     do_checkIfExist
@@ -1438,7 +1444,7 @@ if [[ $hdr10plustool = y ]] &&
 
     do_uninstall "${_check[@]}"
     do_rust
-    do_install "target/$CARCH-pc-windows-gnu/release/hdr10plus_tool.exe" bin-video/
+    do_install "target/$CARCH-pc-windows-gnu$rust_target_suffix/release/hdr10plus_tool.exe" bin-video/
     do_checkIfExist
 fi
 
@@ -1871,7 +1877,7 @@ _vapoursynth_install() {
         do_simple_print "${orange}Vapoursynth is known to be broken on 32-bit and will be disabled"'!'"${reset}"
         return 1
     fi
-    _python_ver=3.12.6
+    _python_ver=3.12.7
     _python_lib=python312
     _vsver=70
     _check=("lib$_python_lib.a")
@@ -1977,7 +1983,7 @@ if [[ $av1an != n ]]; then
         do_uninstall "${_check[@]}"
         PKG_CONFIG="$LOCALDESTDIR/bin/ab-pkg-config-static.bat" \
             VAPOURSYNTH_LIB_DIR="$LOCALDESTDIR/lib" do_rust
-        do_install "target/$CARCH-pc-windows-gnu/release/av1an.exe" $av1an_bindir/
+        do_install "target/$CARCH-pc-windows-gnu$rust_target_suffix/release/av1an.exe" $av1an_bindir/
         do_checkIfExist
     fi
 
@@ -2045,7 +2051,8 @@ _check=(bin-video/vvdecapp.exe
     vvdec/vvdec.h
     libvvdec.{a,pc}
     lib/cmake/vvdec/vvdecConfig.cmake)
-if [[ $bits = 64bit && $vvdec = y ]] &&
+if [[ $bits = 64bit && $vvdec = y ]] ||
+    { [[ $ffmpeg != no && $bits = 64bit ]] && enabled libvvdec; } &&
     do_vcs "$SOURCE_REPO_LIBVVDEC"; then
     do_uninstall include/vvdec lib/cmake/vvdec "${_check[@]}"
     do_cmakeinstall video -DVVDEC_ENABLE_LINK_TIME_OPT=OFF -DVVDEC_INSTALL_VVDECAPP=ON
