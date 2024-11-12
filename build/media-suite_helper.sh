@@ -1336,6 +1336,7 @@ do_cmake() {
         return
     # shellcheck disable=SC2086
     log "cmake" cmake "$root" -G Ninja -DBUILD_SHARED_LIBS=off \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
         -DCMAKE_TOOLCHAIN_FILE="$LOCALDESTDIR/etc/toolchain.cmake" \
         -DCMAKE_INSTALL_PREFIX="$LOCALDESTDIR" -DUNIX=on \
         -DCMAKE_BUILD_TYPE=Release $bindir "$@" "${cmake_extras[@]}"
@@ -1407,7 +1408,6 @@ do_rust() {
     [[ -f "$(get_first_subdir -f)/do_not_reconfigure" ]] &&
         return
     PKG_CONFIG_ALL_STATIC=true \
-        CC="ccache clang" \
         log "rust.build" cargo build \
         --target="$CARCH"-pc-windows-gnu$target_suffix \
         --jobs="$cpuCount" "${@:---release}" "${rust_extras[@]}"
@@ -1424,7 +1424,6 @@ do_rustinstall() {
     [[ -f "$(get_first_subdir -f)/do_not_reconfigure" ]] &&
         return
     PKG_CONFIG_ALL_STATIC=true \
-        CC="ccache clang" \
         PKG_CONFIG="$LOCALDESTDIR/bin/ab-pkg-config" \
         log "rust.install" cargo install \
         --target="$CARCH"-pc-windows-gnu$target_suffix \
@@ -1442,7 +1441,6 @@ do_rustcinstall() {
     [[ -f "$(get_first_subdir -f)/do_not_reconfigure" ]] &&
         return
     PKG_CONFIG_ALL_STATIC=true \
-        CC="ccache clang" \
         PKG_CONFIG="$LOCALDESTDIR/bin/ab-pkg-config" \
         log "rust.cinstall" cargo cinstall \
         --target="$CARCH"-pc-windows-gnu$target_suffix \
